@@ -1,0 +1,22 @@
+# macOS system files
+.DS_Store
+
+# VSCode settings
+.vscode/
+
+# Compiled binaries
+*.out
+*.o
+*.obj
+*.exe
+snake
+
+# Backup files
+*~
+*.swp
+
+# CMake and build folders (if you ever add CMake)
+build/
+
+# Logs
+*.log
