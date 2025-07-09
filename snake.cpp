@@ -76,6 +76,37 @@ void readInput() {
     }
 }
 
+void updateSnake() {
+    if (dir == STOP) return;  // Don't move if stopped
+
+    // Get current head position
+    Coord head = snake.back();
+
+    // Move head in current direction
+    switch (dir) {
+        case UP:
+            head.y--;
+            break;
+        case DOWN:
+            head.y++;
+            break;
+        case LEFT:
+            head.x--;
+            break;
+        case RIGHT:
+            head.x++;
+            break;
+        default:
+            break;
+    }
+
+    // Add new head to snake
+    snake.push_back(head);
+
+    // Remove tail (unless we just ate food — to be added later)
+    snake.erase(snake.begin());
+}
+
 void drawBoard() {
     for (int y = 0; y < HEIGHT; ++y) {
         for (int x = 0; x < WIDTH; ++x) {
@@ -111,8 +142,8 @@ void drawBoard() {
 }
 
 void initializeGame() {
-    // Start snake in center
-    snake.clear();
+    system("clear");  // clear terminal for best view
+    snake.clear();    // Start snake in center
     snake.push_back({WIDTH / 2, HEIGHT / 2});
 
     // Seed random generator
@@ -124,6 +155,10 @@ void initializeGame() {
 }
 
 int main() {
+    // terminal throttling vertical vs horizontal due to font discrepancy
+    int frameCount = 0;
+    const int baseMoveEveryNFrames = 1;
+
     initializeGame();
     setBufferedInput(false);  // Enable raw input
 
@@ -131,10 +166,20 @@ int main() {
         drawBoard();
         readInput();
 
-        // Simple sleep for a short delay
-        usleep(200000);  // 200ms
+        int effectiveMoveFrames = baseMoveEveryNFrames;
 
-        system("clear");
+        if (dir == UP || dir == DOWN) {
+            effectiveMoveFrames += 0;
+        }
+
+        if (dir != STOP && frameCount % effectiveMoveFrames == 0) {
+            updateSnake();
+        }
+
+        usleep(200000);  // short delay, ~200 ms
+
+        std::cout << "\033[H";  // Move cursor to home position top-left (no slow clear)
+        frameCount++;
     }
 
     setBufferedInput(true);  // Restore terminal settings when exiting
