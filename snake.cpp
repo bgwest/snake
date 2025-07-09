@@ -30,6 +30,7 @@ Direction dir;
 
 bool useHalfSize = false;
 bool gameRunning = false;
+bool isPaused = false;
 
 void showMenu(bool allowResize = true) {
     system("clear");
@@ -73,6 +74,38 @@ void showMenu(bool allowResize = true) {
     }
 }
 
+void drawPauseScreen() {
+    system("clear");
+
+    // Example ASCII "PAUSE" banner
+    // clang-format off
+    const std::vector<std::string> pauseArt = {
+        "#####   ###   #   #  ####  #####",
+        "#    # #   #  #   #  #     #    ",
+        "#####  #####  #   #   ###  #### ",
+        "#      #   #  #   #     #  #    ",
+        "#      #   #   ###   ####  #####"
+    };
+    // clang-format on
+
+    int artHeight = pauseArt.size();
+    int artWidth = pauseArt[0].length();
+
+    int offsetY = (HEIGHT / 2) - (artHeight / 2);
+    int offsetX = (WIDTH / 2) - (artWidth / 2);
+
+    for (int y = 0; y < HEIGHT; ++y) {
+        for (int x = 0; x < WIDTH; ++x) {
+            if (y >= offsetY && y < offsetY + artHeight && x >= offsetX && x < offsetX + artWidth) {
+                std::cout << pauseArt[y - offsetY][x - offsetX];
+            } else {
+                std::cout << EMPTY_CHAR;
+            }
+        }
+        std::cout << std::endl;
+    }
+}
+
 void setBufferedInput(bool enable) {
     static struct termios old;
     struct termios newt;
@@ -110,6 +143,10 @@ void readInput() {
                 break;
             case 'd':
                 dir = RIGHT;
+                break;
+            case 'p':
+            case 'P':
+                isPaused = !isPaused;
                 break;
             case 'm':
             case 'M':
@@ -289,6 +326,14 @@ int main() {
     setBufferedInput(false);  // Enable raw input
 
     while (true) {
+        if (isPaused) {
+            drawPauseScreen();
+            readInput();
+            usleep(100000);
+            std::cout << "\033[H";  // Move cursor to home position top-left (faster than clear)
+            continue;               // Skip the rest of this iteration while paused
+        }
+
         drawBoard();
         readInput();
 
@@ -303,9 +348,8 @@ int main() {
             updateSnake();
         }
 
-        usleep(100000);  // short delay, ~100ms
-
-        std::cout << "\033[H";  // Move cursor to home position top-left (no slow clear)
+        usleep(100000);         // short delay, ~100ms
+        std::cout << "\033[H";  // Move cursor to home position top-left (faster than clear)
         frameCount++;
     }
 
