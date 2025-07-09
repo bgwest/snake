@@ -21,3 +21,10 @@ The game uses only standard C++ libraries and prints directly to the console.
 
 ```bash
 clang++ -std=c++17 snake.cpp -o snake
+```
+
+### Run
+
+```bash
+./snake
+```

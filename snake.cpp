@@ -1,3 +1,7 @@
+#include <sys/ioctl.h>
+#include <termios.h>  // for terminal control
+#include <unistd.h>   // for read()
+
 #include <cstdlib>  // for rand()
 #include <ctime>    // for time()
 #include <iostream>
@@ -21,6 +25,56 @@ struct Coord {
 std::vector<Coord> snake;
 
 Coord food;
+
+enum Direction { STOP = 0, LEFT, RIGHT, UP, DOWN };  // 0 - 4
+
+Direction dir;
+
+void setBufferedInput(bool enable) {
+    static struct termios old;
+    struct termios newt;
+
+    if (!enable) {
+        // STDIN_FILENO: file descriptor for standard input (stdin)
+        tcgetattr(STDIN_FILENO, &old);  // get current terminal attributes
+        newt = old;                     // copy them
+        // ICANON: turns off line buffering so input is processed immediately
+        // ECHO: disables echoing characters to screen when typed
+        // c_lflag: local modes flag (controls various terminal behaviors)
+        newt.c_lflag &= ~(ICANON | ECHO);  // disable buffering and echo
+        tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    } else {
+        tcsetattr(STDIN_FILENO, TCSANOW, &old);  // restore old attributes
+    }
+}
+
+void readInput() {
+    char c;
+    // Check if there's input ready to read (non-blocking)
+    int bytesWaiting;
+    ioctl(0, FIONREAD, &bytesWaiting);
+    if (bytesWaiting > 0) {
+        read(STDIN_FILENO, &c, 1);
+        switch (c) {
+            case 'w':
+                dir = UP;
+                break;
+            case 's':
+                dir = DOWN;
+                break;
+            case 'a':
+                dir = LEFT;
+                break;
+            case 'd':
+                dir = RIGHT;
+                break;
+            case 'x':
+                dir = STOP;
+                break;
+        }
+        // std::cout << "Dir: " << dir << std::endl; // uncomment line to debug key strokes
+    }
+}
 
 void drawBoard() {
     for (int y = 0; y < HEIGHT; ++y) {
@@ -71,6 +125,18 @@ void initializeGame() {
 
 int main() {
     initializeGame();
-    drawBoard();
+    setBufferedInput(false);  // Enable raw input
+
+    while (true) {
+        drawBoard();
+        readInput();
+
+        // Simple sleep for a short delay
+        usleep(200000);  // 200ms
+
+        system("clear");
+    }
+
+    setBufferedInput(true);  // Restore terminal settings when exiting
     return 0;
 }
