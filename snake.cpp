@@ -98,6 +98,23 @@ Coord generateFoodPosition() {
     return newFood;
 }
 
+// Returns empty string if no collision, or a reason message if collision
+std::string checkCollision(const Coord &head) {
+    // Check wall collision
+    if (head.x == 0 || head.x == WIDTH - 1 || head.y == 0 || head.y == HEIGHT - 1) {
+        return "You hit a wall!";
+    }
+
+    // Check self collision
+    for (const auto &part : snake) {
+        if (part.x == head.x && part.y == head.y) {
+            return "You ran into yourself!";
+        }
+    }
+
+    return "";
+}
+
 void updateSnake() {
     if (dir == STOP) return;  // Don't move if stopped
 
@@ -120,6 +137,13 @@ void updateSnake() {
             break;
         default:
             break;
+    }
+
+    std::string reason = checkCollision(head);
+    if (!reason.empty()) {
+        std::cout << "Game Over! " << reason << std::endl;
+        setBufferedInput(true);
+        exit(0);
     }
 
     // Add new head to snake
