@@ -157,7 +157,8 @@ void initializeGame() {
 int main() {
     // terminal throttling vertical vs horizontal due to font discrepancy
     int frameCount = 0;
-    const int baseMoveEveryNFrames = 1;
+    const int horizontalFrames = 1;  // Update every frame for horizontal movement
+    const int verticalFrames = 1;    // Adjust this to slow down vertical if needed
 
     initializeGame();
     setBufferedInput(false);  // Enable raw input
@@ -166,12 +167,13 @@ int main() {
         drawBoard();
         readInput();
 
-        int effectiveMoveFrames = baseMoveEveryNFrames;
-
+        // Decide which frame delay to use based on direction
+        int effectiveMoveFrames = horizontalFrames;
         if (dir == UP || dir == DOWN) {
-            effectiveMoveFrames += 0;
+            effectiveMoveFrames = verticalFrames;
         }
 
+        // Only move on specified frames
         if (dir != STOP && frameCount % effectiveMoveFrames == 0) {
             updateSnake();
         }
