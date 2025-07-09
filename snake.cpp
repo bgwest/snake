@@ -23,12 +23,44 @@ struct Coord {
 
 // The snake is a list of coordinates
 std::vector<Coord> snake;
-
 Coord food;
 
 enum Direction { STOP = 0, LEFT, RIGHT, UP, DOWN };  // 0 - 4
-
 Direction dir;
+
+bool useHalfSize = false;
+
+void showMenu() {
+    system("clear");
+    std::cout << "##############################" << std::endl;
+    std::cout << "#          SNAKE            #" << std::endl;
+    std::cout << "##############################" << std::endl;
+    std::cout << std::endl;
+    std::cout << "1. Start Game" << std::endl;
+    std::cout << "2. Toggle Board Size (currently: " << (useHalfSize ? "50%" : "Full") << ")"
+              << std::endl;
+    std::cout << "3. Quit" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Enter choice: ";
+
+    char choice;
+    std::cin >> choice;
+
+    switch (choice) {
+        case '1':
+            return;  // Continue to game
+        case '2':
+            useHalfSize = !useHalfSize;
+            showMenu();  // Show menu again after toggle
+            break;
+        case '3':
+            exit(0);
+            break;
+        default:
+            showMenu();  // Invalid input, show again
+            break;
+    }
+}
 
 void setBufferedInput(bool enable) {
     static struct termios old;
@@ -209,6 +241,11 @@ void initializeGame() {
         if (HEIGHT > 2) {
             HEIGHT -= 1;
         }
+
+        if (useHalfSize) {
+            WIDTH = WIDTH / 2;
+            HEIGHT = HEIGHT / 2;
+        }
     } else {
         std::cerr << "Could not detect terminal size, using default." << std::endl;
     }
@@ -227,6 +264,7 @@ int main() {
     const int horizontalFrames = 1;  // Update every frame for horizontal movement
     const int verticalFrames = 2;    // Adjust this to slow down vertical if needed
 
+    showMenu();
     initializeGame();
     setBufferedInput(false);  // Enable raw input
 
