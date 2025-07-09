@@ -7,8 +7,8 @@
 #include <iostream>
 #include <vector>
 
-const int WIDTH = 20;
-const int HEIGHT = 10;
+int WIDTH = 20;  // Default fallback if terminal size fails
+int HEIGHT = 10;
 
 const char WALL_CHAR = '#';
 const char SNAKE_HEAD_CHAR = '@';
@@ -195,7 +195,25 @@ void drawBoard() {
 
 void initializeGame() {
     system("clear");  // clear terminal for best view
-    snake.clear();    // Start snake in center
+
+    struct winsize w;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0) {
+        WIDTH = w.ws_col;
+        HEIGHT = w.ws_row;
+
+        // Optional: adjust so it's always at least minimal playable size
+        if (WIDTH < 20) WIDTH = 20;
+        if (HEIGHT < 10) HEIGHT = 10;
+
+        // Reserve one row for prompt so we don't push terminal cursor
+        if (HEIGHT > 2) {
+            HEIGHT -= 1;
+        }
+    } else {
+        std::cerr << "Could not detect terminal size, using default." << std::endl;
+    }
+
+    snake.clear();  // Start snake in center
     snake.push_back({WIDTH / 2, HEIGHT / 2});
 
     std::srand(std::time(0));  // Seed random generator
@@ -227,7 +245,7 @@ int main() {
             updateSnake();
         }
 
-        usleep(200000);  // short delay, ~200 ms
+        usleep(100000);  // short delay, ~100ms
 
         std::cout << "\033[H";  // Move cursor to home position top-left (no slow clear)
         frameCount++;
