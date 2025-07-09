@@ -7,8 +7,8 @@
 #include <iostream>
 #include <vector>
 
-const int WIDTH = 20;
-const int HEIGHT = 10;
+int WIDTH = 20;  // Default fallback if terminal size fails
+int HEIGHT = 10;
 
 const char WALL_CHAR = '#';
 const char SNAKE_HEAD_CHAR = '@';
@@ -23,12 +23,89 @@ struct Coord {
 
 // The snake is a list of coordinates
 std::vector<Coord> snake;
-
 Coord food;
 
 enum Direction { STOP = 0, LEFT, RIGHT, UP, DOWN };  // 0 - 4
-
 Direction dir;
+
+bool useHalfSize = false;
+bool gameRunning = false;
+bool isPaused = false;
+
+void showMenu(bool allowResize = true) {
+    system("clear");
+    std::cout << "##############################" << std::endl;
+    std::cout << "#          SNAKE            #" << std::endl;
+    std::cout << "##############################" << std::endl;
+    std::cout << std::endl;
+    std::cout << "1. " << (gameRunning ? "Resume Game" : "Start Game") << std::endl;
+
+    if (allowResize) {
+        std::cout << "2. Toggle Board Size (currently: " << (useHalfSize ? "50%" : "Full") << ")"
+                  << std::endl;
+    }
+
+    std::cout << "3. Quit" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Enter choice (or press M to resume): ";
+
+    char choice;
+    std::cin >> choice;
+
+    switch (choice) {
+        case '1':
+        case 'm':
+        case 'M':
+        case 27:     // Escape key aka '\x1b'
+            return;  // Continue
+        case '2':
+            if (allowResize) {
+                useHalfSize = !useHalfSize;
+                showMenu(allowResize);
+            } else {
+                showMenu(allowResize);
+            }
+            break;
+        case '3':
+            exit(0);
+            break;
+        default:
+            showMenu(allowResize);
+            break;
+    }
+}
+
+void drawPauseScreen() {
+    system("clear");
+
+    // Example ASCII "PAUSE" banner
+    // clang-format off
+    const std::vector<std::string> pauseArt = {
+        "#####   ###   #   #  ####  #####",
+        "#    # #   #  #   #  #     #    ",
+        "#####  #####  #   #   ###  #### ",
+        "#      #   #  #   #     #  #    ",
+        "#      #   #   ###   ####  #####"
+    };
+    // clang-format on
+
+    int artHeight = pauseArt.size();
+    int artWidth = pauseArt[0].length();
+
+    int offsetY = (HEIGHT / 2) - (artHeight / 2);
+    int offsetX = (WIDTH / 2) - (artWidth / 2);
+
+    for (int y = 0; y < HEIGHT; ++y) {
+        for (int x = 0; x < WIDTH; ++x) {
+            if (y >= offsetY && y < offsetY + artHeight && x >= offsetX && x < offsetX + artWidth) {
+                std::cout << pauseArt[y - offsetY][x - offsetX];
+            } else {
+                std::cout << EMPTY_CHAR;
+            }
+        }
+        std::cout << std::endl;
+    }
+}
 
 void setBufferedInput(bool enable) {
     static struct termios old;
@@ -68,11 +145,104 @@ void readInput() {
             case 'd':
                 dir = RIGHT;
                 break;
+            case 'p':
+            case 'P':
+                isPaused = !isPaused;
+                break;
+            case 'm':
+            case 'M':
+            case 27:               // Escape key aka '\x1b'
+                showMenu(false);   // Do not allow resize during game
+                isPaused = false;  // Auto-unpause after menu
+                break;
             case 'x':
                 dir = STOP;
                 break;
         }
         // std::cout << "Dir: " << dir << std::endl; // uncomment line to debug key strokes
+    }
+}
+
+// Generate new food position, not on top of the snake
+Coord generateFoodPosition() {
+    Coord newFood;
+    do {
+        newFood.x = std::rand() % (WIDTH - 2) + 1;
+        newFood.y = std::rand() % (HEIGHT - 2) + 1;
+
+        bool onSnake = false;
+        for (const auto &part : snake) {
+            if (part.x == newFood.x && part.y == newFood.y) {
+                onSnake = true;
+                break;
+            }
+        }
+
+        if (!onSnake) break;
+
+    } while (true);
+
+    return newFood;
+}
+
+// Returns empty string if no collision, or a reason message if collision
+std::string checkCollision(const Coord &head) {
+    // Check wall collision
+    if (head.x == 0 || head.x == WIDTH - 1 || head.y == 0 || head.y == HEIGHT - 1) {
+        return "You hit a wall!";
+    }
+
+    // Check self collision
+    for (const auto &part : snake) {
+        if (part.x == head.x && part.y == head.y) {
+            return "You ran into yourself!";
+        }
+    }
+
+    return "";
+}
+
+void updateSnake() {
+    if (dir == STOP) return;  // Don't move if stopped
+
+    // Get current head position
+    Coord head = snake.back();
+
+    // Move head in current direction
+    switch (dir) {
+        case UP:
+            head.y--;
+            break;
+        case DOWN:
+            head.y++;
+            break;
+        case LEFT:
+            head.x--;
+            break;
+        case RIGHT:
+            head.x++;
+            break;
+        default:
+            break;
+    }
+
+    std::string reason = checkCollision(head);
+    if (!reason.empty()) {
+        std::cout << "Game Over! " << reason << std::endl;
+        setBufferedInput(true);
+        exit(0);
+    }
+
+    // Add new head to snake
+    snake.push_back(head);
+
+    // Check if head is on food
+    if (head.x == food.x && head.y == food.y) {
+        food = generateFoodPosition();
+        // No tail removal = snake grows
+    } else {
+        // Remove tail to keep same length
+        snake.erase(snake.begin());
     }
 }
 
@@ -111,30 +281,79 @@ void drawBoard() {
 }
 
 void initializeGame() {
-    // Start snake in center
-    snake.clear();
+    system("clear");  // clear terminal for best view
+    gameRunning = true;
+
+    struct winsize w;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0) {
+        WIDTH = w.ws_col;
+        HEIGHT = w.ws_row;
+
+        // Optional: adjust so it's always at least minimal playable size
+        if (WIDTH < 20) WIDTH = 20;
+        if (HEIGHT < 10) HEIGHT = 10;
+
+        // Reserve one row for prompt so we don't push terminal cursor
+        if (HEIGHT > 2) {
+            HEIGHT -= 1;
+        }
+
+        if (useHalfSize) {
+            WIDTH = WIDTH / 2;
+            HEIGHT = HEIGHT / 2;
+            // TODO: consider making verticalFrames global for dynamic snake speed
+            // verticalFrames = 3;
+        } else {
+            // verticalFrames = 2;
+        }
+    } else {
+        std::cerr << "Could not detect terminal size, using default." << std::endl;
+    }
+
+    snake.clear();  // Start snake in center
     snake.push_back({WIDTH / 2, HEIGHT / 2});
 
-    // Seed random generator
-    std::srand(std::time(0));
+    std::srand(std::time(0));  // Seed random generator
 
-    // Place food somewhere not on the snake
-    food.x = std::rand() % (WIDTH - 2) + 1;  // avoid walls
-    food.y = std::rand() % (HEIGHT - 2) + 1;
+    food = generateFoodPosition();  // Place food somewhere not on the snake
 }
 
 int main() {
+    // terminal throttling vertical vs horizontal due to font discrepancy
+    int frameCount = 0;
+    const int horizontalFrames = 1;  // Update every frame for horizontal movement
+    const int verticalFrames = 2;    // Adjust this to slow down vertical if needed
+
+    showMenu();
     initializeGame();
     setBufferedInput(false);  // Enable raw input
 
     while (true) {
+        if (isPaused) {
+            drawPauseScreen();
+            readInput();
+            usleep(100000);
+            std::cout << "\033[H";  // Move cursor to home position top-left (faster than clear)
+            continue;               // Skip the rest of this iteration while paused
+        }
+
         drawBoard();
         readInput();
 
-        // Simple sleep for a short delay
-        usleep(200000);  // 200ms
+        // Decide which frame delay to use based on direction
+        int effectiveMoveFrames = horizontalFrames;
+        if (dir == UP || dir == DOWN) {
+            effectiveMoveFrames = verticalFrames;
+        }
 
-        system("clear");
+        // Only move on specified frames
+        if (dir != STOP && frameCount % effectiveMoveFrames == 0) {
+            updateSnake();
+        }
+
+        usleep(100000);         // short delay, ~100ms
+        std::cout << "\033[H";  // Move cursor to home position top-left (faster than clear)
+        frameCount++;
     }
 
     setBufferedInput(true);  // Restore terminal settings when exiting
