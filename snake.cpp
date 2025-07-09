@@ -207,7 +207,7 @@ int main() {
     // terminal throttling vertical vs horizontal due to font discrepancy
     int frameCount = 0;
     const int horizontalFrames = 1;  // Update every frame for horizontal movement
-    const int verticalFrames = 1;    // Adjust this to slow down vertical if needed
+    const int verticalFrames = 2;    // Adjust this to slow down vertical if needed
 
     initializeGame();
     setBufferedInput(false);  // Enable raw input
