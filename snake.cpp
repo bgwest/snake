@@ -46,13 +46,15 @@ void showMenu(bool allowResize = true) {
 
     std::cout << "3. Quit" << std::endl;
     std::cout << std::endl;
-    std::cout << "Enter choice: ";
+    std::cout << "Enter choice (or press M to resume): ";
 
     char choice;
     std::cin >> choice;
 
     switch (choice) {
         case '1':
+        case 'm':
+        case 'M':
             return;  // Continue
         case '2':
             if (allowResize) {
