@@ -56,6 +56,7 @@ void showMenu(bool allowResize = true) {
         case '1':
         case 'm':
         case 'M':
+        case 27:     // Escape key aka '\x1b'
             return;  // Continue
         case '2':
             if (allowResize) {
@@ -150,7 +151,9 @@ void readInput() {
                 break;
             case 'm':
             case 'M':
-                showMenu(false);  // Do not allow resize during game
+            case 27:               // Escape key aka '\x1b'
+                showMenu(false);   // Do not allow resize during game
+                isPaused = false;  // Auto-unpause after menu
                 break;
             case 'x':
                 dir = STOP;
