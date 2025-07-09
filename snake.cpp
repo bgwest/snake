@@ -76,6 +76,28 @@ void readInput() {
     }
 }
 
+// Generate new food position, not on top of the snake
+Coord generateFoodPosition() {
+    Coord newFood;
+    do {
+        newFood.x = std::rand() % (WIDTH - 2) + 1;
+        newFood.y = std::rand() % (HEIGHT - 2) + 1;
+
+        bool onSnake = false;
+        for (const auto &part : snake) {
+            if (part.x == newFood.x && part.y == newFood.y) {
+                onSnake = true;
+                break;
+            }
+        }
+
+        if (!onSnake) break;
+
+    } while (true);
+
+    return newFood;
+}
+
 void updateSnake() {
     if (dir == STOP) return;  // Don't move if stopped
 
@@ -103,8 +125,14 @@ void updateSnake() {
     // Add new head to snake
     snake.push_back(head);
 
-    // Remove tail (unless we just ate food — to be added later)
-    snake.erase(snake.begin());
+    // Check if head is on food
+    if (head.x == food.x && head.y == food.y) {
+        food = generateFoodPosition();
+        // No tail removal = snake grows
+    } else {
+        // Remove tail to keep same length
+        snake.erase(snake.begin());
+    }
 }
 
 void drawBoard() {
@@ -146,12 +174,9 @@ void initializeGame() {
     snake.clear();    // Start snake in center
     snake.push_back({WIDTH / 2, HEIGHT / 2});
 
-    // Seed random generator
-    std::srand(std::time(0));
+    std::srand(std::time(0));  // Seed random generator
 
-    // Place food somewhere not on the snake
-    food.x = std::rand() % (WIDTH - 2) + 1;  // avoid walls
-    food.y = std::rand() % (HEIGHT - 2) + 1;
+    food = generateFoodPosition();  // Place food somewhere not on the snake
 }
 
 int main() {
