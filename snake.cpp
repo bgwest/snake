@@ -29,16 +29,21 @@ enum Direction { STOP = 0, LEFT, RIGHT, UP, DOWN };  // 0 - 4
 Direction dir;
 
 bool useHalfSize = false;
+bool gameRunning = false;
 
-void showMenu() {
+void showMenu(bool allowResize = true) {
     system("clear");
     std::cout << "##############################" << std::endl;
     std::cout << "#          SNAKE            #" << std::endl;
     std::cout << "##############################" << std::endl;
     std::cout << std::endl;
-    std::cout << "1. Start Game" << std::endl;
-    std::cout << "2. Toggle Board Size (currently: " << (useHalfSize ? "50%" : "Full") << ")"
-              << std::endl;
+    std::cout << "1. " << (gameRunning ? "Resume Game" : "Start Game") << std::endl;
+
+    if (allowResize) {
+        std::cout << "2. Toggle Board Size (currently: " << (useHalfSize ? "50%" : "Full") << ")"
+                  << std::endl;
+    }
+
     std::cout << "3. Quit" << std::endl;
     std::cout << std::endl;
     std::cout << "Enter choice: ";
@@ -48,16 +53,20 @@ void showMenu() {
 
     switch (choice) {
         case '1':
-            return;  // Continue to game
+            return;  // Continue
         case '2':
-            useHalfSize = !useHalfSize;
-            showMenu();  // Show menu again after toggle
+            if (allowResize) {
+                useHalfSize = !useHalfSize;
+                showMenu(allowResize);
+            } else {
+                showMenu(allowResize);
+            }
             break;
         case '3':
             exit(0);
             break;
         default:
-            showMenu();  // Invalid input, show again
+            showMenu(allowResize);
             break;
     }
 }
@@ -99,6 +108,10 @@ void readInput() {
                 break;
             case 'd':
                 dir = RIGHT;
+                break;
+            case 'm':
+            case 'M':
+                showMenu(false);  // Do not allow resize during game
                 break;
             case 'x':
                 dir = STOP;
@@ -227,6 +240,7 @@ void drawBoard() {
 
 void initializeGame() {
     system("clear");  // clear terminal for best view
+    gameRunning = true;
 
     struct winsize w;
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0) {
@@ -245,6 +259,10 @@ void initializeGame() {
         if (useHalfSize) {
             WIDTH = WIDTH / 2;
             HEIGHT = HEIGHT / 2;
+            // TODO: consider making verticalFrames global for dynamic snake speed
+            // verticalFrames = 3;
+        } else {
+            // verticalFrames = 2;
         }
     } else {
         std::cerr << "Could not detect terminal size, using default." << std::endl;
