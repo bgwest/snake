@@ -65,11 +65,11 @@ void cleanupAndExit(int status) {
 void drawMainMenuScreen() {
     // clang-format off
     const std::vector<std::string> snakeArt = {
-      "#####  ##   #   #  ##  ##  #####",
-      "#       ###  #  # #  # #  ##     ",
-      "#####   # ## # ##### ###   ####  ",
-      "    #   #  ### #   # # #  #     ",
-      "#####   #   ## #   # #  ## ##### ",
+      "#####   ##   #    #   ##  ##  #####",
+      "#       ###  #   # #   # #    ##     ",
+      "#####   # ## #  #####  ###    ####  ",
+      "    #   #  ###  #   #  # #    ##     ",
+      "#####   #   ##  #   #  #  #   ###### ",
     };
     // clang-format on
 
