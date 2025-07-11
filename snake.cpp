@@ -33,7 +33,8 @@ bool gameRunning = false;
 bool isPaused = false;
 
 void clearScreen() {
-    // Fast: No new process, no shell, it directly writes bytes to the terminal.
+    // std clearing vs system clear
+    // Faster: No new process, no new shell, it directly writes bytes to the terminal.
     // Portable: Works in most modern terminal emulators that support ANSI
     std::cout << "\033[2J\033[H";
 }
@@ -162,16 +163,72 @@ void showMenu(bool allowResize = true) {
         std::cout << std::flush;
 
         char choice;
-        std::cin >> choice;
+        int bytesWaiting;
+        ioctl(0, FIONREAD, &bytesWaiting);
+
+        // Wait for valid input
+        while (bytesWaiting == 0) {
+            ioctl(0, FIONREAD, &bytesWaiting);
+            usleep(10000);  // Sleep briefly to avoid CPU spin
+        }
+
+        read(STDIN_FILENO, &choice, 1);
+
+        // The Escape key can be represented as:
+        //   27  (decimal ASCII code)
+        //   \x1b  (hexadecimal escape sequence)
+        //   \033  (octal escape sequence)
+        // They all mean the same single-byte Escape character.
+        //
+        // When arrow keys are pressed, they also start with Escape (27),
+        // followed by extra bytes (e.g., '[' and 'A' for Up Arrow).
+        // For example, if you press Up Arrow, your terminal typically sends:
+        // [27, 91, 65]  // ESC, '[', 'A'
+        // To detect a true Escape key press, we check if no extra bytes follow.
+        // This avoids incorrectly interpreting arrow keys as Escape
+        // and helps reduce flickering or unintended menu exits.
+        if (choice == '\033') {
+            // When we check if there are more bytes in the buffer (using ioctl(FIONREAD, ...)),
+            // we can distinguish:
+            // 1. If no extra bytes → it’s just Escape.
+            // 2. If extra bytes → it’s an arrow key (or some other escape sequence).
+            // This is why we read seq[0], seq[1], etc., and only treat it as Escape if nothing else
+            // is there.
+            ioctl(0, FIONREAD, &bytesWaiting);
+
+            if (bytesWaiting == 2) {
+                char seq[2];
+                read(STDIN_FILENO, &seq[0], 1);
+                read(STDIN_FILENO, &seq[1], 1);
+
+                // Flush any remaining bytes as a safety net
+                ioctl(0, FIONREAD, &bytesWaiting);
+                while (bytesWaiting > 0) {
+                    char dummy;
+                    read(STDIN_FILENO, &dummy, 1);
+                    ioctl(0, FIONREAD, &bytesWaiting);
+                }
+
+                // Redraw menu and forcibly reset cursor here to reset after
+                // escape keys are scraped
+                if (useHalfSize) {
+                    clearScreen();
+                    drawMainMenuScreen();
+                    std::cout << "\033[H" << std::flush;  // Move cursor to 0,0
+                }
+
+                continue;  // Ignore arrow keys, redraw menu
+            }
+            // If no more bytes: plain ESC (close menu)
+        }
 
         clearScreen();  // Always clear before next decision
 
-        // 27 aka Escape key aka '\x1b' - but we can't use it or it creates bug with arrow keys
-        if (choice == '1' || choice == 'm' || choice == 'M') {
+        if (choice == '1' || choice == 'm' || choice == 'M' || choice == '\033') {
             if (!gameRunning) {
                 initializeGame();
             }
-            return;
+            return;  // Resume game
         } else if (choice == '2' && allowResize && !gameRunning) {
             useHalfSize = !useHalfSize;
             initializeDimensions();
