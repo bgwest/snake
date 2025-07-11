@@ -38,6 +38,29 @@ void clearScreen() {
     std::cout << "\033[2J\033[H";
 }
 
+void setBufferedInput(bool enable) {
+    static struct termios old;
+    struct termios newt;
+
+    if (!enable) {
+        // STDIN_FILENO: file descriptor for standard input (stdin)
+        tcgetattr(STDIN_FILENO, &old);  // get current terminal attributes
+        newt = old;                     // copy them
+        // ICANON: turns off line buffering so input is processed immediately
+        // ECHO: disables echoing characters to screen when typed
+        // c_lflag: local modes flag (controls various terminal behaviors)
+        newt.c_lflag &= ~(ICANON | ECHO);  // disable buffering and echo
+        tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    } else {
+        tcsetattr(STDIN_FILENO, TCSANOW, &old);  // restore old attributes
+    }
+}
+
+void cleanupAndExit(int status) {
+    setBufferedInput(true);  // Always restore echo before exit
+    exit(status);
+}
+
 void drawMainMenuScreen() {
     // clang-format off
     const std::vector<std::string> snakeArt = {
@@ -133,35 +156,29 @@ void initializeGame() {
 
 void showMenu(bool allowResize = true) {
     clearScreen();
-    drawMainMenuScreen();
 
-    char choice;
-    std::cin >> choice;
+    while (true) {
+        drawMainMenuScreen();
+        std::cout << std::flush;
 
-    switch (choice) {
-        case '1':
-        case 'm':
-        case 'M':
-        case 27:  // Escape key aka '\x1b'
+        char choice;
+        std::cin >> choice;
+
+        clearScreen();  // Always clear before next decision
+
+        // 27 aka Escape key aka '\x1b' - but we can't use it or it creates bug with arrow keys
+        if (choice == '1' || choice == 'm' || choice == 'M') {
             if (!gameRunning) {
                 initializeGame();
             }
-            return;  // Continue
-        case '2':
-            if (allowResize) {
-                useHalfSize = !useHalfSize;
-                initializeDimensions();
-                showMenu(allowResize);
-            } else {
-                showMenu(allowResize);
-            }
-            break;
-        case '3':
-            exit(0);
-            break;
-        default:
-            showMenu(allowResize);
-            break;
+            return;
+        } else if (choice == '2' && allowResize && !gameRunning) {
+            useHalfSize = !useHalfSize;
+            initializeDimensions();
+        } else if (choice == '3') {
+            cleanupAndExit(0);
+        }
+        // Otherwise loop back and redraw without recursion
     }
 }
 
@@ -195,24 +212,6 @@ void drawPauseScreen() {
     }
 }
 
-void setBufferedInput(bool enable) {
-    static struct termios old;
-    struct termios newt;
-
-    if (!enable) {
-        // STDIN_FILENO: file descriptor for standard input (stdin)
-        tcgetattr(STDIN_FILENO, &old);  // get current terminal attributes
-        newt = old;                     // copy them
-        // ICANON: turns off line buffering so input is processed immediately
-        // ECHO: disables echoing characters to screen when typed
-        // c_lflag: local modes flag (controls various terminal behaviors)
-        newt.c_lflag &= ~(ICANON | ECHO);  // disable buffering and echo
-        tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-    } else {
-        tcsetattr(STDIN_FILENO, TCSANOW, &old);  // restore old attributes
-    }
-}
-
 void readInput() {
     char c;
     // Check if there's input ready to read (non-blocking)
@@ -220,18 +219,37 @@ void readInput() {
     ioctl(0, FIONREAD, &bytesWaiting);
     if (bytesWaiting > 0) {
         read(STDIN_FILENO, &c, 1);
+
+        // Ignore arrow keys: they begin with '\033' (escape sequence)
+        if (c == '\033') {
+            // Check if it's a full escape sequence (arrow keys)
+            char seq[2];
+            // Non-blocking check: if no more bytes, it's plain ESC
+            ioctl(0, FIONREAD, &bytesWaiting);
+            if (bytesWaiting == 0) {
+                // Plain ESC pressed
+                showMenu(false);
+                isPaused = false;
+                return;
+            }
+            if (read(STDIN_FILENO, &seq[0], 1) == 0) return;
+            if (read(STDIN_FILENO, &seq[1], 1) == 0) return;
+            // It's an arrow key sequence, ignore it
+            return;
+        }
+
         switch (c) {
             case 'w':
-                dir = UP;
+                if (dir != DOWN) dir = UP;
                 break;
             case 's':
-                dir = DOWN;
+                if (dir != UP) dir = DOWN;
                 break;
             case 'a':
-                dir = LEFT;
+                if (dir != RIGHT) dir = LEFT;
                 break;
             case 'd':
-                dir = RIGHT;
+                if (dir != LEFT) dir = RIGHT;
                 break;
             case 'p':
             case 'P':
@@ -245,6 +263,8 @@ void readInput() {
                 break;
             case 'x':
                 dir = STOP;
+                break;
+            default:
                 break;
         }
         // std::cout << "Dir: " << dir << std::endl; // uncomment line to debug key strokes
@@ -295,8 +315,7 @@ void updateSnake() {
     std::string reason = checkCollision(head);
     if (!reason.empty()) {
         std::cout << "Game Over! " << reason << std::endl;
-        setBufferedInput(true);
-        exit(0);
+        cleanupAndExit(0);
     }
 
     // Add new head to snake
@@ -385,6 +404,5 @@ int main() {
         frameCount++;
     }
 
-    setBufferedInput(true);  // Restore terminal settings when exiting
-    return 0;
+    cleanupAndExit(0);
 }
