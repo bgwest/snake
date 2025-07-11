@@ -196,16 +196,14 @@ void showMenu(bool allowResize = true) {
             // is there.
             ioctl(0, FIONREAD, &bytesWaiting);
 
-            if (bytesWaiting == 2) {
-                char seq[2];
-                read(STDIN_FILENO, &seq[0], 1);
-                read(STDIN_FILENO, &seq[1], 1);
-
-                // Flush any remaining bytes as a safety net
-                ioctl(0, FIONREAD, &bytesWaiting);
+            if (bytesWaiting > 0) {
+                // Start building sequence buffer
+                std::vector<char> seq;
                 while (bytesWaiting > 0) {
-                    char dummy;
-                    read(STDIN_FILENO, &dummy, 1);
+                    char next;
+                    read(STDIN_FILENO, &next, 1);
+                    seq.push_back(next);
+
                     ioctl(0, FIONREAD, &bytesWaiting);
                 }
 
@@ -217,6 +215,8 @@ void showMenu(bool allowResize = true) {
                     std::cout << "\033[H" << std::flush;  // Move cursor to 0,0
                 }
 
+                // seq contains full sequence or multiple sequences
+                // Instead of treating as plain ESC, we can safely continue and redraw
                 continue;  // Ignore arrow keys, redraw menu
             }
             // If no more bytes: plain ESC (close menu)
