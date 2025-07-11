@@ -96,7 +96,11 @@ void drawMainMenuScreen() {
         std::cout << "2. Toggle Board Size (currently: " << (useHalfSize ? "50%" : "Full") << ")\n";
     }
     std::cout << "3. Quit\n";
-    std::cout << "\nEnter choice (or press M to resume): ";
+    if (gameRunning) {
+        std::cout << "\nEnter choice (or press M or Esc to resume): ";
+    } else {
+        std::cout << "\nEnter choice: ";
+    }
 }
 
 // Generate new food position, not on top of the snake
