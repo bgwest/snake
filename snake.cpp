@@ -95,7 +95,8 @@ void drawMainMenuScreen() {
     if (!gameRunning) {
         std::cout << "2. Toggle Board Size (currently: " << (useHalfSize ? "50%" : "Full") << ")\n";
     }
-    std::cout << "3. Quit\n";
+    std::cout << "3. View Controls\n";
+    std::cout << "4. Quit\n";
     if (gameRunning) {
         std::cout << "\nEnter choice (or press M or Esc to resume): ";
     } else {
@@ -157,6 +158,39 @@ void initializeGame() {
     std::srand(std::time(0));  // Seed random generator
 
     food = generateFoodPosition();  // Place food somewhere not on the snake
+}
+
+void showControls() {
+    clearScreen();
+
+    std::vector<std::string> lines = {"================= Controls =================",
+                                      "",
+                                      "During Gameplay:",
+                                      "  w - Move up",
+                                      "  a - Move left",
+                                      "  s - Move down",
+                                      "  d - Move right",
+                                      "  p - Pause/Unpause",
+                                      "  m or Esc - Open main menu",
+                                      "  x - Stop (snake stops moving)",
+                                      "",
+                                      "Press any key to return to the main menu..."};
+
+    int startY = (HEIGHT / 2) - (lines.size() / 2);
+    if (startY < 0) startY = 0;
+
+    for (size_t i = 0; i < lines.size(); ++i) {
+        int lineLength = lines[i].length();
+        int startX = (WIDTH / 2) - (lineLength / 2);
+        if (startX < 0) startX = 0;
+
+        std::cout << std::string(startX, ' ') << lines[i] << std::endl;
+    }
+
+    // Wait for any key press to return
+    char dummy;
+    clearScreen();
+    read(STDIN_FILENO, &dummy, 1);
 }
 
 void showMenu(bool allowResize = true) {
@@ -237,6 +271,8 @@ void showMenu(bool allowResize = true) {
             useHalfSize = !useHalfSize;
             initializeDimensions();
         } else if (choice == '3') {
+            showControls();
+        } else if (choice == '4') {
             cleanupAndExit(0);
         }
         // Otherwise loop back and redraw without recursion
@@ -432,9 +468,9 @@ int main() {
     const int horizontalFrames = 1;  // Update every frame for horizontal movement
     const int verticalFrames = 2;    // Adjust this to slow down vertical if needed
 
-    initializeDimensions();  // Get terminal size first, for proper art centering
-    showMenu();
+    initializeDimensions();   // Get terminal size first, for proper art centering
     setBufferedInput(false);  // Enable raw input
+    showMenu();
 
     while (true) {
         if (isPaused) {
